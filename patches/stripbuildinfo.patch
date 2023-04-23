@@ -1,0 +1,175 @@
+diff --git a/src/bench/bench.h b/src/bench/bench.h
+index 63e1bf67e2..358dd663f8 100644
+--- a/src/bench/bench.h
++++ b/src/bench/bench.h
+@@ -77,6 +77,6 @@ public:
+ 
+ // BENCHMARK(foo) expands to:  benchmark::BenchRunner bench_11foo("foo", foo, priority_level);
+ #define BENCHMARK(n, priority_level) \
+-    benchmark::BenchRunner PASTE2(bench_, PASTE2(__LINE__, n))(STRINGIZE(n), n, priority_level);
++    benchmark::BenchRunner PASTE2(bench_, PASTE2(0, n))(STRINGIZE(n), n, priority_level);
+ 
+ #endif // KOYOTECOIN_BENCH_BENCH_H
+diff --git a/src/clientversion.cpp b/src/clientversion.cpp
+index 192e9c52bc..e257059624 100644
+--- a/src/clientversion.cpp
++++ b/src/clientversion.cpp
+@@ -53,7 +53,7 @@ static std::string FormatVersion(int nVersion)
+ 
+ std::string FormatFullVersion()
+ {
+-    static const std::string CLIENT_BUILD(BUILD_DESC BUILD_SUFFIX);
++    static const std::string CLIENT_BUILD("");
+     return CLIENT_BUILD;
+ }
+ 
+diff --git a/src/compat/assumptions.h b/src/compat/assumptions.h
+index 92615b582a..611894be19 100644
+--- a/src/compat/assumptions.h
++++ b/src/compat/assumptions.h
+@@ -13,9 +13,6 @@
+ // Assumption: We assume that the macro NDEBUG is not defined.
+ // Example(s): We use assert(...) extensively with the assumption of it never
+ //             being a noop at runtime.
+-#if defined(NDEBUG)
+-# error "Koyotecoin cannot be compiled without assertions."
+-#endif
+ 
+ // Assumption: We assume a C++17 (ISO/IEC 14882:2017) compiler (minimum requirement).
+ // Example(s): We assume the presence of C++17 features everywhere :-)
+diff --git a/src/logging.h b/src/logging.h
+index 14a0f08f8d..32d4b7c708 100644
+--- a/src/logging.h
++++ b/src/logging.h
+@@ -230,7 +230,7 @@ static inline void LogPrintf_(const std::string& logging_function, const std::st
+     }
+ }
+ 
+-#define LogPrintLevel_(category, level, ...) LogPrintf_(__func__, __FILE__, __LINE__, category, level, __VA_ARGS__)
++#define LogPrintLevel_(category, level, ...) LogPrintf_(__func__, __FILE__, 0, category, level, __VA_ARGS__)
+ 
+ // Log unconditionally.
+ #define LogPrintf(...) LogPrintLevel_(BCLog::LogFlags::NONE, BCLog::Level::None, __VA_ARGS__)
+diff --git a/src/rest.cpp b/src/rest.cpp
+index a10d8a433f..48736c9b9d 100644
+--- a/src/rest.cpp
++++ b/src/rest.cpp
+@@ -87,7 +87,7 @@ static NodeContext* GetNodeContext(const std::any& context, HTTPRequest* req)
+                 strprintf("%s:%d (%s)\n"
+                           "Internal bug detected: Node context not found!\n"
+                           "You may report this issue here: %s\n",
+-                          __FILE__, __LINE__, __func__, PACKAGE_BUGREPORT));
++                          __FILE__, 0, __func__, PACKAGE_BUGREPORT));
+         return nullptr;
+     }
+     return node_context;
+@@ -125,7 +125,7 @@ static ChainstateManager* GetChainman(const std::any& context, HTTPRequest* req)
+                 strprintf("%s:%d (%s)\n"
+                           "Internal bug detected: Chainman disabled or instance not found!\n"
+                           "You may report this issue here: %s\n",
+-                          __FILE__, __LINE__, __func__, PACKAGE_BUGREPORT));
++                          __FILE__, 0, __func__, PACKAGE_BUGREPORT));
+         return nullptr;
+     }
+     return node_context->chainman.get();
+diff --git a/src/sync.h b/src/sync.h
+index 1f4e191214..88d4ade0a0 100644
+--- a/src/sync.h
++++ b/src/sync.h
+@@ -140,12 +140,12 @@ using Mutex = AnnotatedMixin<std::mutex>;
+  */
+ class GlobalMutex : public Mutex { };
+ 
+-#define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, __LINE__, &cs)
++#define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, 0, &cs)
+ 
+ inline void AssertLockNotHeldInline(const char* name, const char* file, int line, Mutex* cs) EXCLUSIVE_LOCKS_REQUIRED(!cs) { AssertLockNotHeldInternal(name, file, line, cs); }
+ inline void AssertLockNotHeldInline(const char* name, const char* file, int line, RecursiveMutex* cs) LOCKS_EXCLUDED(cs) { AssertLockNotHeldInternal(name, file, line, cs); }
+ inline void AssertLockNotHeldInline(const char* name, const char* file, int line, GlobalMutex* cs) LOCKS_EXCLUDED(cs) { AssertLockNotHeldInternal(name, file, line, cs); }
+-#define AssertLockNotHeld(cs) AssertLockNotHeldInline(#cs, __FILE__, __LINE__, &cs)
++#define AssertLockNotHeld(cs) AssertLockNotHeldInline(#cs, __FILE__, 0, &cs)
+ 
+ /** Wrapper around std::unique_lock style lock for MutexType. */
+ template <typename MutexType>
+@@ -241,7 +241,7 @@ public:
+      friend class reverse_lock;
+ };
+ 
+-#define REVERSE_LOCK(g) typename std::decay<decltype(g)>::type::reverse_lock UNIQUE_NAME(revlock)(g, #g, __FILE__, __LINE__)
++#define REVERSE_LOCK(g) typename std::decay<decltype(g)>::type::reverse_lock UNIQUE_NAME(revlock)(g, #g, __FILE__, 0)
+ 
+ // When locking a Mutex, require negative capability to ensure the lock
+ // is not already held
+@@ -255,23 +255,23 @@ inline MutexType& MaybeCheckNotHeld(MutexType& m) LOCKS_EXCLUDED(m) LOCK_RETURNE
+ template <typename MutexType>
+ inline MutexType* MaybeCheckNotHeld(MutexType* m) LOCKS_EXCLUDED(m) LOCK_RETURNED(m) { return m; }
+ 
+-#define LOCK(cs) UniqueLock UNIQUE_NAME(criticalblock)(MaybeCheckNotHeld(cs), #cs, __FILE__, __LINE__)
++#define LOCK(cs) UniqueLock UNIQUE_NAME(criticalblock)(MaybeCheckNotHeld(cs), #cs, __FILE__, 0)
+ #define LOCK2(cs1, cs2)                                               \
+-    UniqueLock criticalblock1(MaybeCheckNotHeld(cs1), #cs1, __FILE__, __LINE__); \
+-    UniqueLock criticalblock2(MaybeCheckNotHeld(cs2), #cs2, __FILE__, __LINE__)
+-#define TRY_LOCK(cs, name) UniqueLock name(MaybeCheckNotHeld(cs), #cs, __FILE__, __LINE__, true)
+-#define WAIT_LOCK(cs, name) UniqueLock name(MaybeCheckNotHeld(cs), #cs, __FILE__, __LINE__)
++    UniqueLock criticalblock1(MaybeCheckNotHeld(cs1), #cs1, __FILE__, 0); \
++    UniqueLock criticalblock2(MaybeCheckNotHeld(cs2), #cs2, __FILE__, 0)
++#define TRY_LOCK(cs, name) UniqueLock name(MaybeCheckNotHeld(cs), #cs, __FILE__, 0, true)
++#define WAIT_LOCK(cs, name) UniqueLock name(MaybeCheckNotHeld(cs), #cs, __FILE__, 0)
+ 
+ #define ENTER_CRITICAL_SECTION(cs)                            \
+     {                                                         \
+-        EnterCritical(#cs, __FILE__, __LINE__, &cs); \
++        EnterCritical(#cs, __FILE__, 0, &cs); \
+         (cs).lock();                                          \
+     }
+ 
+ #define LEAVE_CRITICAL_SECTION(cs)                                          \
+     {                                                                       \
+         std::string lockname;                                               \
+-        CheckLastCritical((void*)(&cs), lockname, #cs, __FILE__, __LINE__); \
++        CheckLastCritical((void*)(&cs), lockname, #cs, __FILE__, 0); \
+         (cs).unlock();                                                      \
+         LeaveCritical();                                                    \
+     }
+diff --git a/src/util/check.h b/src/util/check.h
+index b6c03bed2a..b4a1380061 100644
+--- a/src/util/check.h
++++ b/src/util/check.h
+@@ -38,11 +38,7 @@ T&& inline_check_non_fatal(LIFETIMEBOUND T&& val, const char* file, int line, co
+  * caller, which can then report the issue to the developers.
+  */
+ #define CHECK_NONFATAL(condition) \
+-    inline_check_non_fatal(condition, __FILE__, __LINE__, __func__, #condition)
+-
+-#if defined(NDEBUG)
+-#error "Cannot compile without assertions!"
+-#endif
++    inline_check_non_fatal(condition, __FILE__, 0, __func__, #condition)
+ 
+ /** Helper for Assert() */
+ void assertion_fail(const char* file, int line, const char* func, const char* assertion);
+@@ -64,7 +60,7 @@ T&& inline_assertion_check(LIFETIMEBOUND T&& val, [[maybe_unused]] const char* f
+ }
+ 
+ /** Identity function. Abort if the value compares equal to zero */
+-#define Assert(val) inline_assertion_check<true>(val, __FILE__, __LINE__, __func__, #val)
++#define Assert(val) inline_assertion_check<true>(val, __FILE__, 0, __func__, #val)
+ 
+ /**
+  * Assume is the identity function.
+@@ -76,13 +72,13 @@ T&& inline_assertion_check(LIFETIMEBOUND T&& val, [[maybe_unused]] const char* f
+  * - For non-fatal errors in interactive sessions (e.g. RPC or command line
+  *   interfaces), CHECK_NONFATAL() might be more appropriate.
+  */
+-#define Assume(val) inline_assertion_check<false>(val, __FILE__, __LINE__, __func__, #val)
++#define Assume(val) inline_assertion_check<false>(val, __FILE__, 0, __func__, #val)
+ 
+ /**
+  * NONFATAL_UNREACHABLE() is a macro that is used to mark unreachable code. It throws a NonFatalCheckError.
+  */
+ #define NONFATAL_UNREACHABLE()                                        \
+     throw NonFatalCheckError(                                         \
+-        "Unreachable code reached (non-fatal)", __FILE__, __LINE__, __func__)
++        "Unreachable code reached (non-fatal)", __FILE__, 0, __func__)
+ 
+ #endif // KOYOTECOIN_UTIL_CHECK_H
