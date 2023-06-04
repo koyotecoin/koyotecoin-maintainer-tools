@@ -52,11 +52,11 @@ def parse_tag(tag):
     build = m.group(3)
     rc = m.group(4)
 
-    # # Check for x.y.z.0 or x.y.zrc0
-    # if build == '0' or rc == '0':
-    #     print(
-    #         'rc or build cannot be specified as 0 (leave them out instead)', file=sys.stderr)
-    #     sys.exit(1)
+    # Check for x.y.z.0 or x.y.zrc0
+    if build == '0' or rc == '0':
+        print(
+            'rc or build cannot be specified as 0 (leave them out instead)', file=sys.stderr)
+        sys.exit(1)
 
     # Implicitly, treat no rc as rc0 and no build as build 0
     if build is None:
